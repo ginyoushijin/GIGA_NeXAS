@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.24.0 FATAL_ERROR)
 
 project(GIGA_NEXAS LANGUAGES CXX)
 
