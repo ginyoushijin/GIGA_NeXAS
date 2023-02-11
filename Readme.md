@@ -7,5 +7,5 @@
   
 ### 参考  
 https://github.com/pkuislm/NexasPackEdit  
-https://github.com/Yggdrasill-Moe/Niflheim/blob/master/NeXAS/pac_unpack/Huffman_dec.h
+https://github.com/Yggdrasill-Moe/Niflheim/blob/master/NeXAS/pac_unpack/Huffman_dec.h  
 优化 by https://github.com/crskycode
