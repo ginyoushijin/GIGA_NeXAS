@@ -55,11 +55,13 @@ bool WriteToFile(const std::wstring &path, const void *data, size_t size)
  * @param compressionMethod 压缩方式
  * @param dirPath 输出目录路径
  * @param closeFile 是否关闭文件stream
+ * @return 成功导出的文件数
  */
-bool ExtractEntry(FILE *fp, PackageEntry *entries, uint32_t count, uint32_t compressionMethod, const std::string &dirPath, bool closeFile)
+size_t ExtractEntry(FILE *fp, PackageEntry *entries, uint32_t count, uint32_t compressionMethod, const std::string &dirPath,int codePage ,bool closeFile)
 {
     std::vector<uint8_t> uncompressedData;
     std::vector<uint8_t> compressedData;
+    size_t extractCount = 0;
 
     for (uint32_t i = 0; i < count; i++)
     {
@@ -111,9 +113,9 @@ bool ExtractEntry(FILE *fp, PackageEntry *entries, uint32_t count, uint32_t comp
             fread(uncompressedData.data(), entries[i].CompressedSize, 1, fp);
         }
 
-        std::wstring path = AnsiToUnicode(dirPath, CP_ACP) + L"\\" + AnsiToUnicode(entries[i].Name, CP_UTF8);
+        std::wstring path = AnsiToUnicode(dirPath, CP_ACP) + L"\\" + AnsiToUnicode(entries[i].Name, codePage);
 
-        WriteToFile(path, uncompressedData.data(), uncompressedData.size());
+        if (WriteToFile(path, uncompressedData.data(), uncompressedData.size()))    extractCount++;
     }
 
     if (closeFile)
@@ -121,7 +123,7 @@ bool ExtractEntry(FILE *fp, PackageEntry *entries, uint32_t count, uint32_t comp
         fclose(fp);
     }
 
-    return true;
+    return extractCount;
 }
 
 /**
@@ -132,17 +134,18 @@ bool ExtractEntry(FILE *fp, PackageEntry *entries, uint32_t count, uint32_t comp
  * @param count 封包文件计数
  * @param compressionMethod 封包压缩方式
  * @param dirPath 导出的目标文件夹
- * @return 函数执行结果
+ * @return 成功导出的文件数
  */
-bool ExtractEntryMT(const std::string &pacPath, PackageEntry *entries, uint32_t count, uint32_t compressionMethod, const std::string &dirPath)
+size_t ExtractEntryMT(const std::string &pacPath, PackageEntry *entries, uint32_t count, uint32_t compressionMethod, const std::string &dirPath,int codePage)
 {
     auto maxThreads = std::thread::hardware_concurrency();
     auto filesPerThread = (uint32_t)ceilf((float)count / (float)maxThreads); // 单线程处理的文件数，向上取整
 
+    size_t extractCount = 0;    // 导出的文件数
     uint32_t remaining = count; // 未处理的文件数
     uint32_t j = 0;
 
-    std::list<std::future<bool>> tasks;
+    std::list<std::future<size_t>> tasks;
 
     for (uint32_t i = 0; i < maxThreads; i++)
     {
@@ -156,19 +159,16 @@ bool ExtractEntryMT(const std::string &pacPath, PackageEntry *entries, uint32_t 
         if (fp)
         {
             auto startEntry = entries + j;
-            auto task = std::async(std::launch::async, ExtractEntry, fp, startEntry, processCount, compressionMethod, dirPath, true);
+            auto task = std::async(std::launch::async, ExtractEntry, fp, startEntry, processCount, compressionMethod, dirPath, codePage ,true);
             tasks.emplace_back(std::move(task));
         }
 
         j += processCount;
     }
 
-    for (auto &t : tasks)
-    {
-        t.get();
-    }
+    for (auto &t : tasks) extractCount += t.get();
 
-    return true;
+    return extractCount;
 }
 
 /**
@@ -178,7 +178,7 @@ bool ExtractEntryMT(const std::string &pacPath, PackageEntry *entries, uint32_t 
  * @param dirPath 输出目录路径
  * @return 函数执行结果
  */
-bool ExtractPackage(const std::string &pacPath, const std::string &dirPath)
+bool ExtractPackage(const std::string &pacPath, const std::string &dirPath,int codePage)
 {
     FILE *fp = fopen(pacPath.c_str(), "rb");
 
@@ -239,13 +239,13 @@ bool ExtractPackage(const std::string &pacPath, const std::string &dirPath)
     auto tp1 = steady_clock::now();
 
     // ExtractEntry(fp, (PackageEntry*)index.data(), entryCount, compressionMethod, dirPath, false);
-    ExtractEntryMT(pacPath, (PackageEntry *)index.data(), entryCount, compressionMethod, dirPath);
+    size_t extractCount = ExtractEntryMT(pacPath, (PackageEntry *)index.data(), entryCount, compressionMethod, dirPath,codePage);
 
     auto tp2 = steady_clock::now();
 
     auto ms = duration_cast<milliseconds>(tp2 - tp1).count();
 
-    printf("Extracted %d files in %llu ms.\n", entryCount, ms);
+    printf("Extracted %d files in %llu ms.\n", extractCount, ms);
 
     fclose(fp);
 

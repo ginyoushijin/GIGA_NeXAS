@@ -43,3 +43,27 @@ static std::string UnicodeToAnsi(const std::wstring& source, int codePage)
 	}
 	return output;
 }
+
+static std::string AnsiToUTF8(const std::string& source)
+{
+	if(source.length()==0) return std::string();
+
+	if(source.length()>(size_t)std::numeric_limits<int>::max())  return std::string();
+
+	int utf16Length = MultiByteToWideChar(CP_ACP,0,source.c_str(),(int)source.length(),NULL,0);
+
+	if(utf16Length<=0) return std::string();
+
+	std::wstring utf16String(utf16Length,'\0');
+
+	if(MultiByteToWideChar(CP_ACP,0,source.c_str(),(int)source.length(),(LPWSTR)utf16String.data(),utf16Length+1)==0) return std::string();
+
+	int utf8Length = WideCharToMultiByte(CP_UTF8,0,utf16String.data(),utf16Length,NULL,0,NULL,NULL);
+
+	std::string output(utf8Length,'\0');
+	
+	if(WideCharToMultiByte(CP_UTF8,0,utf16String.data(),utf16Length,(LPSTR)output.data(),utf8Length+1,NULL,NULL)==0) return std::string();
+
+	return output;
+
+}
