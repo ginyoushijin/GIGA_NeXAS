@@ -1,4 +1,10 @@
-﻿
+﻿#include "packFunc.h"
+
+#include "enc.hpp"
+#include "huffman/huffmanDecoder.h"
+#include "quote/header/zlib.h"
+#include "quote/header/zstd.h"
+
 // For SHCreateDirectoryExA
 #include <windows.h>
 #include <shlobj.h>
@@ -6,15 +12,10 @@
 #include <thread>
 #include <future>
 #include <list>
+#include <iostream>
 
 #undef min
 #undef max
-
-#include "packFunc.h"
-#include "enc.hpp"
-#include "../huffman/huffman.h"
-#include "../quote/header/zlib.h"
-#include "../quote/header/zstd.h"
 
 using std::chrono::duration_cast;
 using std::chrono::milliseconds;
@@ -228,10 +229,8 @@ bool ExtractPackage(const std::string &pacPath, const std::string &dirPath,int c
     index.resize(indexSize);
 
     // Decompress index
-    Huffman *huffman = new Huffman(compressedIndex.data(), compressedIndexSize);
-    uint32_t dummy = 0;
-    huffman->decode(index.data(), indexSize, &dummy);
-    delete huffman;
+    HuffmanDecoder huffmanDecoder(compressedIndex.data(),compressedIndexSize);
+    huffmanDecoder.Decode(index.data(),indexSize);
 
     // 偷懒方式创建文件夹
     SHCreateDirectoryExA(NULL, dirPath.c_str(), NULL);

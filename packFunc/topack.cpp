@@ -1,15 +1,15 @@
+#include "packFunc.h"
+
+#include "enc.hpp"
+#include "huffman/huffmanEncoder.h"
+#include "quote/header/zlib.h"
+#include "quote/header/zstd.h"
 
 #include <thread>
 #include <future>
 #include <chrono>
 #include <list>
 #include <io.h>
-
-#include "packFunc.h"
-#include "enc.hpp"
-#include "../huffman/huffman.h"
-#include "../quote/header/zlib.h"
-#include "../quote/header/zstd.h"
 
 using std::chrono::duration_cast;
 using std::chrono::milliseconds;
@@ -296,15 +296,11 @@ bool CreatePackage(const std::string &pacPath, const std::string &dirPath, int c
 
     entryCount = i;
 
-    auto index = (uint8_t *)entries.data();
+    uint8_t* const index = reinterpret_cast<uint8_t*>(entries.data());
     auto indexSize = sizeof(PackageEntry) * entryCount;
 
-    std::vector<uint8_t> compressedIndex;
-    compressedIndex.reserve(indexSize);
-
-    Huffman *huffman = new Huffman();
-    huffman->encode(index, indexSize, compressedIndex);
-    delete huffman;
+    HuffmanEncoder huffmanEncoder;
+    std::vector<uint8_t> compressedIndex = huffmanEncoder.Encode(index,indexSize);
 
     uint32_t compressedIndexSize = compressedIndex.size();
 
@@ -525,16 +521,12 @@ bool CreatePackageMT(const std::string &pacPath, const std::string &dirPath, int
 
     entryCount = i;
 
-    auto index = (uint8_t *)entries.data();
+    uint8_t* const index = reinterpret_cast<uint8_t*>(entries.data());
     auto indexSize = sizeof(PackageEntry) * entryCount;
 
-    std::vector<uint8_t> compressedIndex;
-    compressedIndex.reserve(indexSize);
-
     // 压缩索引
-    Huffman *huffman = new Huffman();
-    huffman->encode(index, indexSize, compressedIndex);
-    delete huffman;
+    HuffmanEncoder huffmanEncoder;
+    std::vector<uint8_t> compressedIndex = huffmanEncoder.Encode(index,indexSize);
 
     uint32_t compressedIndexSize = compressedIndex.size();
 
